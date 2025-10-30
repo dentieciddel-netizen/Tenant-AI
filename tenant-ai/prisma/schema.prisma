@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String?
+  phone       String?
+  role        UserRole @default(TENANT)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  ownedProperties Property[] @relation("LandlordProperties")
+  tenancies       Tenancy[]
+  sentMessages    Message[]  @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+}
+
+model Property {
+  id          String   @id @default(cuid())
+  name        String
+  address     String
+  city        String
+  rentAmount  Float
+  landlordId  String
+  createdAt   DateTime @default(now())
+  
+  landlord  User     @relation("LandlordProperties", fields: [landlordId], references: [id])
+  units     Unit[]
+  tenancies Tenancy[]
+}
+
+model Unit {
+  id         String   @id @default(cuid())
+  unitNumber String
+  status     UnitStatus @default(VACANT)
+  propertyId String
+  
+  property Property @relation(fields: [propertyId], references: [id])
+  tenancies Tenancy[]
+}
+
+model Tenancy {
+  id        String   @id @default(cuid())
+  startDate DateTime
+  endDate   DateTime?
+  rentAmount Float
+  status    TenancyStatus @default(ACTIVE)
+  
+  tenantId   String
+  unitId     String
+  propertyId String
+  
+  tenant   User     @relation(fields: [tenantId], references: [id])
+  unit     Unit     @relation(fields: [unitId], references: [id])
+  property Property @relation(fields: [propertyId], references: [id])
+  payments Payment[]
+}
+
+model Payment {
+  id         String   @id @default(cuid())
+  amount     Float
+  status     PaymentStatus @default(PENDING)
+  method     PaymentMethod
+  paystackReference String?
+  dueDate    DateTime
+  paidAt     DateTime?
+  
+  tenancyId String
+  
+  tenancy Tenancy @relation(fields: [tenancyId], references: [id])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  
+  senderId   String
+  receiverId String
+  
+  sender   User @relation("SentMessages", fields: [senderId], references: [id])
+  receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id])
+}
+
+enum UserRole {
+  LANDLORD
+  TENANT
+  ADMIN
+}
+
+enum UnitStatus {
+  OCCUPIED
+  VACANT
+  MAINTENANCE
+}
+
+enum TenancyStatus {
+  ACTIVE
+  ENDED
+  SUSPENDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  OVERDUE
+}
+
+enum PaymentMethod {
+  CARD
+  MOBILE_MONEY
+  BANK_TRANSFER
+}
